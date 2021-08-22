@@ -17,7 +17,7 @@ describe('COMP interpreter tests', () => {
             if (testFile.endsWith("COMP") && (runOnly.length == 0 || runOnly.indexOf(testFile) != -1)) {
                 it(testFile, () => {
                     const script = readFileSync(__dirname + "/resources/" + dir + "/" + testFile);
-                    const expected = readFileSync(__dirname + "/resources/" + dir + "/" + testFile.replace(/\.COMP$/, ".result"));
+                    const expected = JSON.parse(readFileSync(__dirname + "/resources/" + dir + "/" + testFile.replace(/\.COMP$/, ".result")).toString());
                     const result = interpreter.run(script.toString());
                     if (testFile.includes('err')) {
                         expect(result instanceof COMPError).to.be.true;
@@ -25,7 +25,7 @@ describe('COMP interpreter tests', () => {
                         if (result instanceof COMPError) {
                             throw result
                         } else {
-                            expect(result).to.be.eql(expected.toString());
+                            expect(result).to.be.eql(expected);
                         }
                     }
                 })

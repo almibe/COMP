@@ -7,12 +7,12 @@ import { Operation } from "./operations"
 
 export type StackValue = number
 
-export function interpret(operations: Array<Operation>): StackValue {
+export function interpret(operations: Array<Operation>): Array<StackValue> {
     let stack: Array<StackValue> = new Array()
 
-    for (let operation in operations) {
-        TODO()
+    for (let operation of operations) {
+        operation.run(stack)
     }
 
-    return TODO()
+    return stack
 }

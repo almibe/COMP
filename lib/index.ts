@@ -5,11 +5,11 @@
 import { createToken, CstParser, Lexer } from 'chevrotain'
 import { debug, TODO } from './debug'
 import { interpret, StackValue } from './interpreter'
-import { Operation } from './operations'
+import { Operation, PushOperation } from './operations'
 
 const WHITE_SPACE_T = createToken({name: "WhiteSpace", pattern: /\s+/, group: Lexer.SKIPPED })
 
-const NEW_LINE_T = createToken({name: "NewLine", pattern: /\r?\n/ })
+const NEW_LINE_T = createToken({name: "NewLine", pattern: /\r?\n/, pop_mode: true })
 
 const NOT_NEW_LINE_T = createToken({name: "NotNewLine", pattern: /[^(?:\r?\n)]+/ })
 
@@ -124,7 +124,6 @@ class COMPVisitor extends BaseCOMPVisitor {
     }
 
     topLevel(ctx: any): Operation { //TODO will probably return an array eventually
-        debug("topLevel", ctx)
         if (ctx.singleLineComment != undefined) {
             return this.visit(ctx.singleLineComment)
         } else if (ctx.multiLineComment != undefined) {
@@ -135,14 +134,12 @@ class COMPVisitor extends BaseCOMPVisitor {
     }
 
     singleLineComment(ctx: any): any {
-        debug("single line comment", ctx)
-        this.visit(ctx.basicComment);
-        return TODO()
+        return this.visit(ctx.basicComment);
     }
 
     basicComment(ctx: any): Operation {
-        debug("BASIC Comment", ctx)
-        return TODO()
+        let value = Number(ctx.ArgumentBody[0].image)
+        return new PushOperation(value)
     }
 
     // multiLineComment(ctx: any): any {
@@ -160,7 +157,7 @@ export class COMPError {
 const compVisitor = new COMPVisitor()
 
 export class COMPInterpreter {
-    run(script: string): StackValue | COMPError {
+    run(script: string): Array<StackValue> | COMPError {
         const res = this.createAst(script)
         if (res instanceof COMPError) {
             return res
