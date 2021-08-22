@@ -2,34 +2,51 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { createToken, CstParser, Lexer } from 'chevrotain';
-import { debug, TODO } from './debug';
-import { interpret, StackValue } from './interpreter';
-import { Operation } from './operations';
+import { createToken, CstParser, Lexer } from 'chevrotain'
+import { debug, TODO } from './debug'
+import { interpret, StackValue } from './interpreter'
+import { Operation } from './operations'
 
-const WHITE_SPACE_T = createToken({name: "WhiteSpace", pattern: /\s+/, group: Lexer.SKIPPED });
+const WHITE_SPACE_T = createToken({name: "WhiteSpace", pattern: /\s+/, group: Lexer.SKIPPED })
+
+const NEW_LINE_T = createToken({name: "NewLine", pattern: /\r?\n/ })
+
+const NOT_NEW_LINE_T = createToken({name: "NotNewLine", pattern: /[^(?:\r?\n)]+/ })
+
+const COMMENT_BODY_T = createToken({ name: "CommentBody", pattern: /\w+/ }) //TODO this is wrong
+
+const ARGUMENT_T = createToken({ name: "ArgumentBody", pattern: /\d+/ }) //TODO this only supports integers for now
 
 //Single Line Comment Tokens
-const REM_T = createToken({ name: "REMComment", pattern: /REM/ }); //TODO make sure REMEMBER isn't matched
-const C_COMMENT_T = createToken({name: "CComment", pattern: /\/\// });
-const PERL_COMMENT_T = createToken({name: "PerlComment", pattern: /#/ });
-const HASKELL_COMMENT_T = createToken({name: "HaskellComment", pattern: /--/ });
-const ASSEMBLY_COMMENT_T = createToken({name: "AssemblyComment", pattern: /;/ });
-const MATLAB_COMMENT_T = createToken({name: "MatlabComment", pattern: /%/});
-
-//TODO add comment body token
+const BASIC_COMMENT_T = createToken({ name: "BasicComment", pattern: /REM /, push_mode: "basic_mode" })
+const C_COMMENT_T = createToken({name: "CComment", pattern: /\/\// })
+const PERL_COMMENT_T = createToken({name: "PerlComment", pattern: /#/ })
+const HASKELL_COMMENT_T = createToken({name: "HaskellComment", pattern: /--/ })
+const ASSEMBLY_COMMENT_T = createToken({name: "AssemblyComment", pattern: /;/ })
+const MATLAB_COMMENT_T = createToken({name: "MatlabComment", pattern: /%/})
 
 //TODO add multi-line comments
 
-const allTokens = [
-    WHITE_SPACE_T,
-    REM_T,
-    C_COMMENT_T,
-    PERL_COMMENT_T,
-    HASKELL_COMMENT_T,
-    ASSEMBLY_COMMENT_T,
-    MATLAB_COMMENT_T,
-];
+const allTokens = {
+    modes: {
+        outside_mode: [
+            WHITE_SPACE_T,
+            BASIC_COMMENT_T,
+            C_COMMENT_T,
+            PERL_COMMENT_T,
+            HASKELL_COMMENT_T,
+            ASSEMBLY_COMMENT_T,
+            MATLAB_COMMENT_T,
+        ],
+        basic_mode: [
+            ARGUMENT_T,
+            COMMENT_BODY_T,
+            NOT_NEW_LINE_T,
+            NEW_LINE_T
+        ]
+    },
+    defaultMode: "outside_mode"
+}
 
 class COMPParser extends CstParser {
     constructor() {
@@ -46,13 +63,13 @@ class COMPParser extends CstParser {
         $.RULE('topLevel', () => {
             $.OR([
                 { ALT: () => $.SUBRULE($.singleLineComment) },
-                { ALT: () => $.SUBRULE($.multiLineComment) }
+                //{ ALT: () => $.SUBRULE2($.multiLineComment) }
             ])
         })
 
         $.RULE('singleLineComment', () => {
             $.OR([
-                { ALT: () => $.CONSUME(REM_T) },
+                { ALT: () => $.SUBRULE($.basicComment) },
                 { ALT: () => $.CONSUME(C_COMMENT_T) },
                 { ALT: () => $.CONSUME(PERL_COMMENT_T) },
                 { ALT: () => $.CONSUME(HASKELL_COMMENT_T) },
@@ -61,9 +78,15 @@ class COMPParser extends CstParser {
             ])
         })
 
-        $.RULE('multiLineComment', () => {
-            //TODO
+        $.RULE('basicComment', () => {
+            $.CONSUME(BASIC_COMMENT_T)
+            $.CONSUME(ARGUMENT_T)
+           $.OPTION(() => { $.CONSUME(COMMENT_BODY_T) })
         })
+
+        // $.RULE('multiLineComment', () => {
+        //     //TODO
+        // })
 
         this.performSelfAnalysis()
     }
@@ -72,7 +95,8 @@ class COMPParser extends CstParser {
     script: any
     topLevel: any
     singleLineComment: any
-    multiLineComment: any
+    basicComment: any
+//    multiLineComment: any
 }
 
 const compLexer = new Lexer(allTokens)
@@ -89,6 +113,7 @@ class COMPVisitor extends BaseCOMPVisitor {
     }
 
     script(ctx: any): Array<Operation> {
+        //debug("script", ctx)
         let operations = Array<Operation>()
         if (ctx.topLevel != undefined) {
             for (let ts of ctx.topLevel) {
@@ -99,22 +124,30 @@ class COMPVisitor extends BaseCOMPVisitor {
     }
 
     topLevel(ctx: any): Operation { //TODO will probably return an array eventually
-        if (ctx.expression != undefined) {
-            return this.visit(ctx.expression)
-        } else if (ctx.letStatement != undefined) {
-            return this.visit(ctx.letStatement)
+        debug("topLevel", ctx)
+        if (ctx.singleLineComment != undefined) {
+            return this.visit(ctx.singleLineComment)
+        } else if (ctx.multiLineComment != undefined) {
+            return this.visit(ctx.multiLineComment)
         } else {
             throw new Error("Not implemented.")
         }
     }
 
     singleLineComment(ctx: any): any {
+        debug("single line comment", ctx)
+        this.visit(ctx.basicComment);
         return TODO()
     }
 
-    multiLineComment(ctx: any): any {
+    basicComment(ctx: any): Operation {
+        debug("BASIC Comment", ctx)
         return TODO()
     }
+
+    // multiLineComment(ctx: any): any {
+    //     return TODO()
+    // }
 }
 
 export class COMPError { 
