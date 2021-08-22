@@ -14,5 +14,32 @@ export const procedures = {
         } else {
             throw new COMPError("Could not add numbers.")
         }
+    },
+    sub: function(stack: Array<StackValue>) {
+        let left = stack.pop();
+        let right = stack.pop();
+        if (left != undefined && right != undefined) {
+            stack.push(left - right)
+        } else {
+            throw new COMPError("Could not subtract numbers.")
+        }
+    },
+    mul: function(stack: Array<StackValue>) {
+        let left = stack.pop();
+        let right = stack.pop();
+        if (left != undefined && right != undefined) {
+            stack.push(left * right)
+        } else {
+            throw new COMPError("Could not multiply numbers.")
+        }
+    },
+    div: function(stack: Array<StackValue>) {
+        let left = stack.pop();
+        let right = stack.pop();
+        if (left != undefined && right != undefined) {
+            stack.push(left / right)
+        } else {
+            throw new COMPError("Could not divide numbers.")
+        }
     }
 }

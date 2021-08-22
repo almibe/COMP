@@ -27,5 +27,3 @@ To run a script issue the following command:
 | `;`     | assembly | roll      | -         |
 | `%`     | matlab   | swap      | -         |
 
-## Block based comments
-

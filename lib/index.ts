@@ -5,7 +5,7 @@
 import { createToken, CstParser, Lexer } from 'chevrotain'
 import { debug, TODO } from './debug'
 import { interpret, StackValue } from './interpreter'
-import { CallOperation, Operation, PopOperation, PushOperation } from './operations'
+import { CallOperation, DupeOperation, Operation, PopOperation, PushOperation, RollOperation, SwapOperation } from './operations'
 import { procedures } from './procedures'
 
 const WHITE_SPACE_T = createToken({name: "WhiteSpace", pattern: /\s+/, group: Lexer.SKIPPED })
@@ -22,11 +22,11 @@ const PROCEDURE_NAME_T = createToken({ name: "ProcedureName", pattern: /[a-zA-Z]
 
 //Single Line Comment Tokens
 const BASIC_COMMENT_T = createToken({ name: "BasicComment", pattern: /REM /, push_mode: "basic_mode" })
-const C_COMMENT_T = createToken({name: "CComment", pattern: /\/\// })
+const C_COMMENT_T = createToken({name: "CComment", pattern: /\/\//, push_mode: "no_arg_mode"  })
 const PERL_COMMENT_T = createToken({name: "PerlComment", pattern: /#/, push_mode: "perl_mode" })
 const HASKELL_COMMENT_T = createToken({name: "HaskellComment", pattern: /--/, push_mode: "no_arg_mode" })
-const ASSEMBLY_COMMENT_T = createToken({name: "AssemblyComment", pattern: /;/ })
-const MATLAB_COMMENT_T = createToken({name: "MatlabComment", pattern: /%/})
+const ASSEMBLY_COMMENT_T = createToken({name: "AssemblyComment", pattern: /;/, push_mode: "no_arg_mode" })
+const MATLAB_COMMENT_T = createToken({name: "MatlabComment", pattern: /%/, push_mode: "no_arg_mode" })
 
 //TODO add multi-line comments
 
@@ -86,9 +86,9 @@ class COMPParser extends CstParser {
                 { ALT: () => $.SUBRULE($.basicComment) },
                 { ALT: () => $.SUBRULE($.haskellComment) },
                 { ALT: () => $.SUBRULE($.perlComment) },
-                { ALT: () => $.CONSUME(C_COMMENT_T) },
-                { ALT: () => $.CONSUME(ASSEMBLY_COMMENT_T) },
-                { ALT: () => $.CONSUME(MATLAB_COMMENT_T) }
+                { ALT: () => $.SUBRULE($.cComment) },
+                { ALT: () => $.SUBRULE($.assemblyComment) },
+                { ALT: () => $.SUBRULE($.matlabComment) }
             ])
         })
 
@@ -115,6 +115,24 @@ class COMPParser extends CstParser {
             $.OPTION2(() => { $.CONSUME(NEW_LINE_POP_T) })
         })
 
+        $.RULE('cComment', () => {
+            $.CONSUME(C_COMMENT_T)
+            $.OPTION(() => { $.CONSUME(NOT_NEW_LINE_T) })
+            $.OPTION2(() => { $.CONSUME(NEW_LINE_POP_T) })
+        })
+
+        $.RULE('assemblyComment', () => {
+            $.CONSUME(ASSEMBLY_COMMENT_T)
+            $.OPTION(() => { $.CONSUME(NOT_NEW_LINE_T) })
+            $.OPTION2(() => { $.CONSUME(NEW_LINE_POP_T) })
+        })
+
+        $.RULE('matlabComment', () => {
+            $.CONSUME(MATLAB_COMMENT_T)
+            $.OPTION(() => { $.CONSUME(NOT_NEW_LINE_T) })
+            $.OPTION2(() => { $.CONSUME(NEW_LINE_POP_T) })
+        })
+
         // $.RULE('multiLineComment', () => {
         //     //TODO
         // })
@@ -129,6 +147,9 @@ class COMPParser extends CstParser {
     basicComment: any
     haskellComment: any
     perlComment: any
+    cComment: any
+    assemblyComment: any
+    matlabComment: any
 //    multiLineComment: any
 }
 
@@ -173,8 +194,14 @@ class COMPVisitor extends BaseCOMPVisitor {
             return this.visit(ctx.haskellComment)
         } else if (ctx.perlComment != undefined) {
             return this.visit(ctx.perlComment)
+        } else if (ctx.cComment != undefined) {
+            return this.visit(ctx.cComment)  
+        } else if (ctx.assemblyComment != undefined) {
+            return this.visit(ctx.assemblyComment)
+        } else if (ctx.matlabComment != undefined) {
+            return this.visit(ctx.matlabComment)
         } else {
-            debug("Not supported", ctx)
+            throw debug("Not supported", ctx)
         }
     }
 
@@ -190,6 +217,18 @@ class COMPVisitor extends BaseCOMPVisitor {
     perlComment(ctx: any): Operation {
         let procedureName = ctx.ProcedureName[0].image
         return new CallOperation(procedureName)
+    }
+
+    cComment(ctx: any): Operation {
+        return new DupeOperation()
+    }
+
+    assemblyComment(ctx: any): Operation {
+        return new RollOperation()
+    }
+
+    matlabComment(ctx: any): Operation {
+        return new SwapOperation()
     }
 
     // multiLineComment(ctx: any): any {
