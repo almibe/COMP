@@ -8,24 +8,45 @@ This language celebrates the multitude of comment syntaxes in programming langua
 
 This project requires a recent version of node/npm to be installed (developed on 7.20.3), see https://nodejs.org/en/download/
 
-To run tests issue the following command:
+ * To run tests issue the following command:
 
 `npm t`
 
-To run a script issue the following command:
+ * To run a script issue the following command, replacing the filename accordingly:
 
-`TODO`
+`npx ts-node ./lib/comp.ts ./test/resources/singleLine/REM.COMP`
+
+ * To run the REPL issue the following command
+
+`npx ts-node ./lib/comp.ts`
+
+Press Ctrl+C to exit.
+
+## Example
+
+```
+REM 1 this is a comment that takes a single argument and put it on the stack
+REM 2 arguments are always the first part of a comment
+REM 3 the stack is now [1,2,3]
+-- this comment takes no arguments and pops a value from the stack, which is now [1,2]
+; this should roll so the stack is now [2,1]
+
+# add this command executes a procedure so now the stack is [3]
+
+REM 4
+# mul should result in [12]
+```
 
 ## Line based comments
 
 | Comment | Origin   | Function  | Args      |
 | ------- | -------- | --------- | --------- |
-| `REM`   | Basic    | push      | value     |
-| `--`    | haskell  | pop       | -         |
-| `#`     | perl     | call      | proc name |
+| `REM`   | BASIC    | push      | value     |
+| `--`    | Haskell  | pop       | -         |
+| `#`     | Perl     | call      | proc name |
 | `//`    | C-style  | duplicate | -         |
-| `;`     | assembly | roll      | -         |
-| `%`     | matlab   | swap      | -         |
+| `;`     | Assembly | roll      | -         |
+| `%`     | MATLAB   | swap      | -         |
 
 ## Values
 
@@ -38,3 +59,7 @@ When you issue a `#` comment you can follow that comment with `add`, `sub`, `mul
 ## Examples
 
 See `test/resources/` for examples.
+
+## Future plans
+
+I didn't get to do everything I originally planned to do with project.

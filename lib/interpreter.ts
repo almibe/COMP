@@ -7,9 +7,7 @@ import { Operation } from "./operations"
 
 export type StackValue = number
 
-export function interpret(operations: Array<Operation>): Array<StackValue> {
-    let stack: Array<StackValue> = new Array()
-
+export function interpret(operations: Array<Operation>, stack: Array<StackValue> = new Array()): Array<StackValue> {
     for (let operation of operations) {
         operation.run(stack)
     }

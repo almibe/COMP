@@ -246,16 +246,16 @@ export class COMPError {
 const compVisitor = new COMPVisitor()
 
 export class COMPInterpreter {
-    run(script: string): Array<StackValue> | COMPError {
-        const res = this.createAst(script)
+    run(script: string, stack: Array<StackValue> = new Array()): Array<StackValue> | COMPError {
+        const res = this.createOperations(script)
         if (res instanceof COMPError) {
             return res
         } else {
-            return interpret(res)
+            return interpret(res, stack)
         }
     }
 
-    createAst(script: string): Array<Operation> | COMPError  {
+    createOperations(script: string): Array<Operation> | COMPError  {
         const lexResult = compLexer.tokenize(script);
         if (lexResult.errors.length > 0) {
             return new COMPError(`Lexing Error: ${lexResult.errors.toString()}`); //TODO make message better/multiple messages?
