@@ -2,7 +2,7 @@
 
 The COMment Processor language written for https://github.com/langjam/jam0001
 
-This language celebrates the multitude of comment syntaxes in programming languages and uses them to encode a simple stack based interpreter.
+This language celebrates the multitude of comment syntaxes in programming languages and uses them to encode a simple stack-based interpreter.
 
 ## Basic Usage
 
@@ -37,7 +37,7 @@ REM 4
 # mul should result in [12]
 ```
 
-## Line based comments
+## Single Line Comments
 
 | Comment | Origin   | Function  | Args      |
 | ------- | -------- | --------- | --------- |
@@ -60,6 +60,24 @@ When you issue a `#` comment you can follow that comment with `add`, `sub`, `mul
 
 See `test/resources/` for examples.
 
-## Future plans
+## Future Plans
 
 I didn't get to do everything I originally planned to do with project.
+Below are some improvements that could be made.
+
+### Support More Types
+
+It would be nice to support something other than numbers.
+Ideally all basic JavaScript types could be supported.
+
+### Error Handling
+
+There is none.
+
+### User Defined Procedures
+
+I was originally planning on using multi-line comments (like `/* */` or `<!-- -->`) to allow users to define their own procedures but I never got around to it.
+
+### Conditionals
+
+Similar to the above I was planning on supporting basic conditionals with multi-line comments as well.
