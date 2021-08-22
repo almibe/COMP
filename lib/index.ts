@@ -5,9 +5,12 @@
 import { createToken, CstParser, Lexer } from 'chevrotain'
 import { debug, TODO } from './debug'
 import { interpret, StackValue } from './interpreter'
-import { Operation, PopOperation, PushOperation } from './operations'
+import { CallOperation, Operation, PopOperation, PushOperation } from './operations'
+import { procedures } from './procedures'
 
 const WHITE_SPACE_T = createToken({name: "WhiteSpace", pattern: /\s+/, group: Lexer.SKIPPED })
+
+const WHITE_SPACE_NO_NEW_LINE_T = createToken({name: "WhiteSpaceNoNewLine", pattern: /[ \t]+/, group: Lexer.SKIPPED })
 
 const NEW_LINE_POP_T = createToken({name: "NewLinePop", pattern: /\r?\n/, pop_mode: true })
 
@@ -15,10 +18,12 @@ const NOT_NEW_LINE_T = createToken({name: "NotNewLine", pattern: /[^(?:\r?\n)]+/
 
 const ARGUMENT_T = createToken({ name: "ArgumentBody", pattern: /\d+/ }) //TODO this only supports integers for now
 
+const PROCEDURE_NAME_T = createToken({ name: "ProcedureName", pattern: /[a-zA-Z]+/ })
+
 //Single Line Comment Tokens
 const BASIC_COMMENT_T = createToken({ name: "BasicComment", pattern: /REM /, push_mode: "basic_mode" })
 const C_COMMENT_T = createToken({name: "CComment", pattern: /\/\// })
-const PERL_COMMENT_T = createToken({name: "PerlComment", pattern: /#/ })
+const PERL_COMMENT_T = createToken({name: "PerlComment", pattern: /#/, push_mode: "perl_mode" })
 const HASKELL_COMMENT_T = createToken({name: "HaskellComment", pattern: /--/, push_mode: "no_arg_mode" })
 const ASSEMBLY_COMMENT_T = createToken({name: "AssemblyComment", pattern: /;/ })
 const MATLAB_COMMENT_T = createToken({name: "MatlabComment", pattern: /%/})
@@ -37,13 +42,21 @@ const allTokens = {
             MATLAB_COMMENT_T,
         ],
         basic_mode: [
+            WHITE_SPACE_NO_NEW_LINE_T,
             NEW_LINE_POP_T,
             ARGUMENT_T,
             NOT_NEW_LINE_T
         ],
         no_arg_mode: [
+            WHITE_SPACE_NO_NEW_LINE_T,
             NEW_LINE_POP_T,
             NOT_NEW_LINE_T
+        ],
+        perl_mode: [
+            WHITE_SPACE_NO_NEW_LINE_T,
+            PROCEDURE_NAME_T,
+            NOT_NEW_LINE_T,
+            NEW_LINE_POP_T,
         ]
     },
     defaultMode: "outside_mode"
@@ -72,9 +85,8 @@ class COMPParser extends CstParser {
             $.OR([
                 { ALT: () => $.SUBRULE($.basicComment) },
                 { ALT: () => $.SUBRULE($.haskellComment) },
+                { ALT: () => $.SUBRULE($.perlComment) },
                 { ALT: () => $.CONSUME(C_COMMENT_T) },
-                { ALT: () => $.CONSUME(PERL_COMMENT_T) },
-                //{ ALT: () => $.CONSUME(HASKELL_COMMENT_T) },
                 { ALT: () => $.CONSUME(ASSEMBLY_COMMENT_T) },
                 { ALT: () => $.CONSUME(MATLAB_COMMENT_T) }
             ])
@@ -93,6 +105,16 @@ class COMPParser extends CstParser {
             $.OPTION2(() => { $.CONSUME(NEW_LINE_POP_T) })
         })
 
+        $.RULE('perlComment', () => {
+            $.CONSUME(PERL_COMMENT_T)
+            $.CONSUME(PROCEDURE_NAME_T)
+            $.MANY(() => $.OR([
+                { ALT: () => $.CONSUME(NOT_NEW_LINE_T) },
+                { ALT: () => $.CONSUME2(PROCEDURE_NAME_T) }
+            ]))
+            $.OPTION2(() => { $.CONSUME(NEW_LINE_POP_T) })
+        })
+
         // $.RULE('multiLineComment', () => {
         //     //TODO
         // })
@@ -106,6 +128,7 @@ class COMPParser extends CstParser {
     singleLineComment: any
     basicComment: any
     haskellComment: any
+    perlComment: any
 //    multiLineComment: any
 }
 
@@ -148,6 +171,8 @@ class COMPVisitor extends BaseCOMPVisitor {
             return this.visit(ctx.basicComment)
         } else if (ctx.haskellComment != undefined) {
             return this.visit(ctx.haskellComment)
+        } else if (ctx.perlComment != undefined) {
+            return this.visit(ctx.perlComment)
         } else {
             debug("Not supported", ctx)
         }
@@ -160,6 +185,11 @@ class COMPVisitor extends BaseCOMPVisitor {
 
     haskellComment(ctx: any): Operation {
         return new PopOperation()
+    }
+
+    perlComment(ctx: any): Operation {
+        let procedureName = ctx.ProcedureName[0].image
+        return new CallOperation(procedureName)
     }
 
     // multiLineComment(ctx: any): any {
@@ -189,7 +219,7 @@ export class COMPInterpreter {
     createAst(script: string): Array<Operation> | COMPError  {
         const lexResult = compLexer.tokenize(script);
         if (lexResult.errors.length > 0) {
-            return new COMPError(`Lexing Error: ${lexResult.errors}`); //TODO make message better/multiple messages?
+            return new COMPError(`Lexing Error: ${lexResult.errors.toString()}`); //TODO make message better/multiple messages?
         }
         
         compParser.input = lexResult.tokens;

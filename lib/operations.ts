@@ -4,6 +4,7 @@
 
 import { debug, TODO } from "./debug";
 import { StackValue } from "./interpreter";
+import { procedures } from "./procedures";
 
 export interface Operation {
     run(stack: Array<StackValue>): void
@@ -24,5 +25,21 @@ export class PushOperation implements Operation {
 export class PopOperation implements Operation {
     run(stack: StackValue[]): void {
         stack.pop()
+    }
+}
+
+export class CallOperation implements Operation {
+    readonly procedureName: string
+
+    constructor(procedureName: string) {
+        this.procedureName = procedureName
+    }
+
+    run(stack: StackValue[]): void {
+        if (this.procedureName == "add") {
+            procedures.add(stack)
+        } else {
+            throw new Error(`${this.procedureName} not supported.`)
+        }
     }
 }
