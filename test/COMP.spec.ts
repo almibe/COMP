@@ -22,7 +22,11 @@ describe('COMP interpreter tests', () => {
                     if (testFile.includes('err')) {
                         expect(result instanceof COMPError).to.be.true;
                     } else {
-                        expect(result).to.be.eql(expected.toString());
+                        if (result instanceof COMPError) {
+                            throw result
+                        } else {
+                            expect(result).to.be.eql(expected.toString());
+                        }
                     }
                 })
             }
