@@ -5,15 +5,13 @@
 import { createToken, CstParser, Lexer } from 'chevrotain'
 import { debug, TODO } from './debug'
 import { interpret, StackValue } from './interpreter'
-import { Operation, PushOperation } from './operations'
+import { Operation, PopOperation, PushOperation } from './operations'
 
 const WHITE_SPACE_T = createToken({name: "WhiteSpace", pattern: /\s+/, group: Lexer.SKIPPED })
 
-const NEW_LINE_T = createToken({name: "NewLine", pattern: /\r?\n/, pop_mode: true })
+const NEW_LINE_POP_T = createToken({name: "NewLinePop", pattern: /\r?\n/, pop_mode: true })
 
 const NOT_NEW_LINE_T = createToken({name: "NotNewLine", pattern: /[^(?:\r?\n)]+/ })
-
-const COMMENT_BODY_T = createToken({ name: "CommentBody", pattern: /\w+/ }) //TODO this is wrong
 
 const ARGUMENT_T = createToken({ name: "ArgumentBody", pattern: /\d+/ }) //TODO this only supports integers for now
 
@@ -21,7 +19,7 @@ const ARGUMENT_T = createToken({ name: "ArgumentBody", pattern: /\d+/ }) //TODO 
 const BASIC_COMMENT_T = createToken({ name: "BasicComment", pattern: /REM /, push_mode: "basic_mode" })
 const C_COMMENT_T = createToken({name: "CComment", pattern: /\/\// })
 const PERL_COMMENT_T = createToken({name: "PerlComment", pattern: /#/ })
-const HASKELL_COMMENT_T = createToken({name: "HaskellComment", pattern: /--/ })
+const HASKELL_COMMENT_T = createToken({name: "HaskellComment", pattern: /--/, push_mode: "no_arg_mode" })
 const ASSEMBLY_COMMENT_T = createToken({name: "AssemblyComment", pattern: /;/ })
 const MATLAB_COMMENT_T = createToken({name: "MatlabComment", pattern: /%/})
 
@@ -39,10 +37,13 @@ const allTokens = {
             MATLAB_COMMENT_T,
         ],
         basic_mode: [
+            NEW_LINE_POP_T,
             ARGUMENT_T,
-            COMMENT_BODY_T,
-            NOT_NEW_LINE_T,
-            NEW_LINE_T
+            NOT_NEW_LINE_T
+        ],
+        no_arg_mode: [
+            NEW_LINE_POP_T,
+            NOT_NEW_LINE_T
         ]
     },
     defaultMode: "outside_mode"
@@ -70,9 +71,10 @@ class COMPParser extends CstParser {
         $.RULE('singleLineComment', () => {
             $.OR([
                 { ALT: () => $.SUBRULE($.basicComment) },
+                { ALT: () => $.SUBRULE($.haskellComment) },
                 { ALT: () => $.CONSUME(C_COMMENT_T) },
                 { ALT: () => $.CONSUME(PERL_COMMENT_T) },
-                { ALT: () => $.CONSUME(HASKELL_COMMENT_T) },
+                //{ ALT: () => $.CONSUME(HASKELL_COMMENT_T) },
                 { ALT: () => $.CONSUME(ASSEMBLY_COMMENT_T) },
                 { ALT: () => $.CONSUME(MATLAB_COMMENT_T) }
             ])
@@ -81,7 +83,14 @@ class COMPParser extends CstParser {
         $.RULE('basicComment', () => {
             $.CONSUME(BASIC_COMMENT_T)
             $.CONSUME(ARGUMENT_T)
-           $.OPTION(() => { $.CONSUME(COMMENT_BODY_T) })
+            $.OPTION(() => { $.CONSUME(NOT_NEW_LINE_T) })
+            $.OPTION2(() => { $.CONSUME(NEW_LINE_POP_T) })
+        })
+
+        $.RULE('haskellComment', () => {
+            $.CONSUME(HASKELL_COMMENT_T)
+            $.OPTION(() => { $.CONSUME(NOT_NEW_LINE_T) })
+            $.OPTION2(() => { $.CONSUME(NEW_LINE_POP_T) })
         })
 
         // $.RULE('multiLineComment', () => {
@@ -96,6 +105,7 @@ class COMPParser extends CstParser {
     topLevel: any
     singleLineComment: any
     basicComment: any
+    haskellComment: any
 //    multiLineComment: any
 }
 
@@ -134,12 +144,22 @@ class COMPVisitor extends BaseCOMPVisitor {
     }
 
     singleLineComment(ctx: any): any {
-        return this.visit(ctx.basicComment);
+        if (ctx.basicComment != undefined) {
+            return this.visit(ctx.basicComment)
+        } else if (ctx.haskellComment != undefined) {
+            return this.visit(ctx.haskellComment)
+        } else {
+            debug("Not supported", ctx)
+        }
     }
 
     basicComment(ctx: any): Operation {
         let value = Number(ctx.ArgumentBody[0].image)
         return new PushOperation(value)
+    }
+
+    haskellComment(ctx: any): Operation {
+        return new PopOperation()
     }
 
     // multiLineComment(ctx: any): any {

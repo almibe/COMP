@@ -20,3 +20,9 @@ export class PushOperation implements Operation {
         stack.push(this.value)
     }
 }
+
+export class PopOperation implements Operation {
+    run(stack: StackValue[]): void {
+        stack.pop()
+    }
+}
