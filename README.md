@@ -37,6 +37,8 @@ REM 4
 # mul should result in [12]
 ```
 
+See `test/resources/` for more examples.
+
 ## Single Line Comments
 
 | Comment | Origin   | Function  | Args      |
@@ -55,10 +57,6 @@ Currently only integers are supported as input although regular JavaScript numbe
 ## Procedures
 
 When you issue a `#` comment you can follow that comment with `add`, `sub`, `mul`, or `div` to perform the given procedure on the top two values.
-
-## Examples
-
-See `test/resources/` for examples.
 
 ## Future Plans
 
